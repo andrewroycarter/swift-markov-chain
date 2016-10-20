@@ -147,7 +147,7 @@ class Chain {
         }
         
         group.wait()
-        return sentences
+        return Array(sentences.suffix(count))
     }
     
     /// Recursive function for building a new sentence
