@@ -22,7 +22,7 @@ class Chain {
     /// Represents word or sentence end that comes after a given source work.
     private enum Link {
         case end
-        case word(String)
+        case word([String])
     }
     
     // MARK: - Properties
@@ -35,7 +35,7 @@ class Chain {
     
     // MARK: - Init
     
-    init(_ string: String) {
+    init(_ string: String, wordLength: Int = 1) {
         // Generate sentences from source
         let sentences = Chain.makeSentences(from: string)
         
@@ -64,7 +64,10 @@ class Chain {
                     wordLinks.append(.end)
                 } else {
                     // Otherwise we can add the next word
-                    wordLinks.append(.word(words[index + 1]))
+                    let start = index + 1
+                    let end = start + (wordLength - 1) < words.count ? start + (wordLength - 1) : start
+                    let result = Array(words[start ... end])
+                    wordLinks.append(.word(result))
                 }
                 
                 // Store the updated links for this word
@@ -78,7 +81,7 @@ class Chain {
     }
     
     /// Create a Chain from the text of the given file paths
-    convenience init(_ filePaths: [String]) {
+    convenience init(_ filePaths: [String], wordLength: Int = 1) {
         let filesString = filePaths.map { path -> String in
             do {
                 let string = try String(contentsOfFile: path)
@@ -89,7 +92,7 @@ class Chain {
             }
             .reduce("") { "\($0)\n\($1)" }
         
-        self.init(filesString)
+        self.init(filesString, wordLength: wordLength)
     }
     
     // MARK: - Static Methods
@@ -171,13 +174,13 @@ class Chain {
             let word = link.randomElement()
             
             switch word {
-                // If the link is an end, our sentence is done
+            // If the link is an end, our sentence is done
             case .end:
                 return "\(sentence)."
                 
-                // If the link is a word, add it to our sentence and continue building
-            case .word(let string):
-                return makeSentence(from: "\(sentence) \(string)", previousWord: string)
+            // If the link is a word, add it to our sentence and continue building
+            case .word(let strings):
+                return makeSentence(from: "\(sentence) \(strings.joined(separator: " "))", previousWord: strings.last)
             }
         }
         
@@ -191,9 +194,11 @@ var paths = [String]()
 var collectingPaths = false
 var collectingCount = false
 var collectingRequiredWords = false
+var collectingWordLength = false
 var sentenceCount = 1
 var requiredWords = [String]()
 var parallel = false
+var wordLength = 1
 
 // Parse parameters from command line
 CommandLine.arguments.forEach { argument in
@@ -204,22 +209,33 @@ CommandLine.arguments.forEach { argument in
         collectingPaths = false
         collectingCount = false
         collectingRequiredWords = false
+        collectingWordLength = false
         parallel = true
         
     case "-f":
         collectingPaths = true
         collectingCount = false
         collectingRequiredWords = false
+        collectingWordLength = false
         
     case "-s":
         collectingPaths = false
         collectingCount = true
         collectingRequiredWords = false
+        collectingWordLength = false
         
     case "-r":
         collectingPaths = false
         collectingCount = false
         collectingRequiredWords = true
+        collectingWordLength = false
+        
+        
+    case "-w":
+        collectingPaths = false
+        collectingCount = false
+        collectingRequiredWords = false
+        collectingWordLength = true
         
     default:
         if collectingPaths {
@@ -228,6 +244,8 @@ CommandLine.arguments.forEach { argument in
             sentenceCount = Int(argument) ?? 1
         } else if collectingRequiredWords {
             requiredWords.append(argument)
+        } else if collectingWordLength {
+            wordLength = Int(argument) ?? 1
         }
     }
     
@@ -239,7 +257,7 @@ if paths.isEmpty {
 }
 
 print("Building chain...")
-let chain = Chain(paths)
+let chain = Chain(paths, wordLength: wordLength)
 
 print("Generating \(sentenceCount) sentence(s)...")
 let startDate = Date()
@@ -248,6 +266,6 @@ let endDate = Date()
 print("Finished in \(endDate.timeIntervalSince(startDate)) seconds.")
 
 print("Results:")
-print(sentences.joined(separator: "\n"))
+print(sentences.joined(separator: "\n\n"))
 exit(0)
 
